@@ -1,0 +1,110 @@
+package: cloud.lazycat.app.podfetch1
+version: 5.2.3-3
+name: PodFetch
+description: 自托管播客管理器：订阅、搜索、下载与在线收听，支持 GPodder 同步和转写全文检索。
+author: SamTV12345
+license: Apache-2.0
+homepage: https://github.com/SamTV12345/PodFetch
+min_os_version: 1.6.0
+permissions:
+  required:
+    - net.internet
+locales:
+  zh-CN:
+    name: PodFetch 播客管理器
+    description: 自托管播客管理器：订阅播客、下载单集、在线收听，支持 GPodder 同步与转写全文检索，数据留在自己的微服上。
+    usage: >
+      PodFetch 是自托管的播客管理器：在一台微服上集中订阅、下载和收听播客，数据（订阅、收听进度、音频文件）
+      都留在自己的盒子里。
+
+
+      首次使用：
+
+      1. 打开应用即可进入主页，应用本身不需要注册或登录（访问权限由微服入口控制，未登录微服的用户打不开）。
+      2. 点顶部「新增」添加播客，三种方式：
+         - 搜索：输入播客名，走 Apple 播客目录搜索，不需要任何密钥；
+         - 订阅地址：直接粘贴播客的 RSS 地址；
+         - OPML 文件：从懒猫网盘或本机选择一个 .opml 文件，批量导入订阅。
+      3. 订阅后进入播客详情页，可以「下载到服务端」（音频存到微服）或直接在页面上播放。下载到服务端的单集可以离线收听、也能同步给手机播客 App。
+
+
+      常用操作：
+
+      - 收听：底部播放条支持倍速、快进快退、跳过片头片尾（SponsorBlock）；收听进度会自动记录，换设备继续听。
+      - GPodder 同步：在「设置 → GPodder」里生成连接信息，手机上的播客 App（AntennaPod 等）可以拿它同步订阅与播放进度。
+      - 转写搜索：支持 Podcasting 2.0 转写文件；单集有转写时可以做全文检索并跳转到对应时间点。
+      - 语言：界面跟随浏览器语言，中文环境默认显示简体中文，也可以在设置里手动切换（简体中文、英语、德语、法语、西班牙语、丹麦语、波兰语）。
+
+
+      文件：
+
+      - 上传/导入：选择 OPML 文件时会弹出统一窗口，可以从微服网盘选，也可以选本机文件。
+      - 导出/下载：订阅导出（.opml）和单集「下载到电脑」都会弹出同一个窗口，可以保存到网盘目录或下载到本机。
+      - 未下载到服务端的单集，「下载到电脑」的地址来自播客源站，这类第三方直链无法写入微服网盘；
+        需要保存到网盘时，请先「下载到服务端」，再点「下载到电脑」。
+
+
+      说明与限制：
+
+      - 数据持久化：数据库（SQLite）在 /lzcapp/var/db，音频文件在 /lzcapp/var/podcasts，重启与升级都不会丢。
+      - 定时抓取：默认每 300 分钟检查一次新单集，可在设置里调整。
+      - 「发现」（热门榜单、分类推荐）走 Podcast Index，需要自备该服务的 API Key/Secret；不填不影响搜索、订阅和收听。
+      - 自动生成转写需要自备 OpenAI 兼容的 Whisper 接口；不配置时只使用播客自带的转写文件。
+      - 应用默认不开启账号体系，因此不做多用户数据隔离；同一微服内能打开本应用的用户共享同一份订阅与进度。
+  en-US:
+    name: PodFetch
+    description: >-
+      Self-hosted podcast manager: subscribe, search, download and stream
+      episodes, with GPodder sync and transcript full-text search.
+    usage: >
+      PodFetch is a self-hosted podcast manager: keep subscriptions, download
+      episodes and listen from one box, with all data stored locally.
+
+
+      Getting started:
+
+      1. Open the app; there is no sign-up or login of its own (access is
+      controlled by the box entry, so signed-out users cannot reach it).
+      2. Click "Add new" to add a podcast in one of three ways: keyword search
+      (Apple Podcasts directory, no key needed), a feed URL, or an .opml file
+      picked from the box network drive or your computer.
+      3. In the podcast view, use "download to server" to store episodes on the
+      box, or play them directly in the browser.
+
+
+      Common tasks:
+
+      - Listening: playback bar with speed, seek and SponsorBlock skipping;
+      progress is remembered across devices.
+      - GPodder sync: Settings → GPodder gives connection details so mobile
+      podcast apps can sync subscriptions and progress.
+      - Transcripts: Podcasting 2.0 transcripts can be full-text searched with
+      jump-to-timestamp.
+      - Language: the UI follows the browser language (Simplified Chinese is
+      shown automatically), and can be changed in settings.
+
+
+      Files:
+
+      - Import: picking an OPML file opens the unified dialog for box network
+      drive files or local files.
+      - Export / download: subscription export (.opml) and "download to
+      computer" open the same dialog, so files can be saved to the network
+      drive.
+      - For episodes that are not yet downloaded to the server, "download to
+      computer" points at the third-party feed host, which cannot be written to
+      the box network drive. Download the episode to the server first when you
+      want it on the network drive.
+
+
+      Notes and limits:
+
+      - Persistence: SQLite database in /lzcapp/var/db, audio files in
+      /lzcapp/var/podcasts; restarts and upgrades keep the data.
+      - Feed polling defaults to every 300 minutes and is configurable.
+      - Discover (charts and categories) uses Podcast Index and needs your own
+      API key/secret; search, subscribe and playback work without it.
+      - Auto-generated transcripts need an OpenAI-compatible Whisper endpoint.
+      - The app ships with its account system disabled, so there is no
+      per-user data isolation: every box user who can open the app shares the
+      same subscriptions and progress.

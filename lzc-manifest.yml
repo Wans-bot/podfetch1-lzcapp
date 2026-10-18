@@ -1,0 +1,108 @@
+application:
+  subdomain: podfetch
+  # 应用把 SPA 挂在 /ui/ 下（vite base=/ui/），服务端 / 会跳 /ui/。
+  # 用 upstreams + disable_trim_location 保留路径前缀。
+  upstreams:
+    - location: /
+      backend: http://podfetch.cloud.lazycat.app.podfetch1.lzcapp:8000
+      disable_trim_location: true
+  health_check:
+    test_url: http://podfetch.cloud.lazycat.app.podfetch1.lzcapp:8000/ui/
+    start_period: 60s
+    timeout: 10s
+  injects:
+    # 官方《网盘文件选择器/自动拦截》要求的 request 阶段桥接：
+    # 把 /__lazycat_file_bridge/* 转发到 file.<boxdomain>，让「保存到网盘」真正落盘。
+    # 缺少这一段时，自己的目录可能看起来能用，但共享目录按 owner 切换会失败。
+    - id: lazycat-file-bridge
+      'on': request
+      auth_required: false
+      when:
+        - /__lazycat_file_bridge/*
+      do:
+        - src: >
+            const bridgePrefix = "/__lazycat_file_bridge";
+
+            const requestHost = String(ctx.request.host ||
+            "").split(":")[0].toLowerCase();
+
+            const firstDot = requestHost.indexOf(".");
+
+            const method = String(ctx.request.method || "").toUpperCase();
+
+            if (firstDot <= 0 || !requestHost.endsWith(".heiyu.space") ||
+            !["GET", "HEAD", "PUT"].includes(method)) {
+              ctx.response.send(["GET", "HEAD", "PUT"].includes(method) ? 400 : 405, "Invalid LazyCat file bridge request");
+              return;
+            }
+
+            const boxDomain = requestHost.slice(firstDot + 1);
+
+            ctx.headers.del("Origin");
+
+            ctx.headers.del("Referer");
+
+            ctx.proxy.to("https://file." + boxDomain, { path: "/files/home" +
+            ctx.request.path.slice(bridgePrefix.length), query:
+            ctx.request.raw_query, use_target_host: true, timeout_ms: 120000,
+            on_fail: "error" });
+    - id: open-save-chooser
+      # 官方选择器脚本（sha256 4da22e7d…，取自 developer.lazycat.cloud/lazycat-injects/）。
+      # PodFetch 的文件入口：OPML 导入是 <input type=file>，订阅导出是 blob: 下载锚点。
+      'on': browser
+      auth_required: false
+      when:
+        - /*
+      do:
+        - src: >-
+            file:///lzcapp/pkg/content/lazycat-injects/lzc-file-chooser-inject.js
+          params:
+            diskRoot: /_lzc/files/home
+            fileBridgeRoot: /__lazycat_file_bridge
+            fallbackMime: application/octet-stream
+            locale: auto
+            hooks:
+              fileSystemAccess: true
+              fileInput: true
+              downloadAnchor: true
+    - id: podfetch-discover-without-podindex
+      # 「发现」页默认标签会请求 Podcast Index；未配置 PODINDEX_API_KEY/SECRET 时上游固定返回
+      # 400「X-Auth-Key ... corrupt」，前端会渲染成报错。这里仅在收到 400 时归一成空列表，
+      # 页面显示“暂无推荐”，不再有报错；配置了 Podcast Index 的部署不会命中，行为不变。
+      on: response
+      auth_required: false
+      when:
+        - /api/v1/discover/for-you*
+        - /api/v1/discover/trending*
+      do: |
+        if (ctx.status !== 400) return;
+        ctx.response.send(200, "[]", { content_type: "application/json" });
+    - id: podfetch-http-download-bridge
+      # 官方拦截器的 downloadAnchor 钩子只认 blob:/data: 锚点；
+      # PodFetch 单集「下载到电脑」用的是普通 http(s) 锚点（下载到服务端后是同源
+      # /api/v1/episodes/... 或 /podcasts/... 地址），必须补接，否则走浏览器原生下载。
+      'on': browser
+      auth_required: false
+      when:
+        - /*
+      do:
+        - src: file:///lzcapp/pkg/content/lazycat-injects/podfetch-http-download-bridge.js
+services:
+  podfetch:
+    image: registry.lazycat.cloud/wans/samuel19982/podfetch:b1b68198532777f8
+    # 镜像基于 scratch，容器里没有 /bin/sh、curl、wget，探针必须用 exec 形式直接跑应用自带二进制。
+    # users list 会真的连一次 SQLite，能同时证明二进制可执行、数据库可读写；
+    # 没有这条探针时容器永远是 Up（无 healthy），平台就绪门会一直「Standing by」。
+    healthcheck:
+      test: ["CMD", "/app/podfetch", "users", "list"]
+      interval: 30s
+      timeout: 15s
+      retries: 3
+      start_period: 60s
+    environment:
+      - TZ=Asia/Shanghai
+      - DATABASE_URL=sqlite:///app/db/podcast.db
+      - POLLING_INTERVAL=300
+    binds:
+      - /lzcapp/var/db:/app/db
+      - /lzcapp/var/podcasts:/app/podcasts
